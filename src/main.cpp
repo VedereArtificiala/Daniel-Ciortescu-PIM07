@@ -25,6 +25,10 @@ int main()
         // Procesam imaginea pentru a evidentia venele si afisam rezultatul.
         process(data);
     }
+    else
+    {
+        std::cout << "Imagine invalida\n";
+    }
 
     // Asteptam pana cand utilizatorul apasa o tasta.
     waitKey(0);
