@@ -11,8 +11,20 @@ void process(imageAnalyze& data)
 
     // Gaus pe original blureaza imaginea
     // Mat gaussMat = apelGaussianBlurCV(data.grayScale);
+
+    Mat dilatedImage = apelDilatareCV(data.grayScale);
+	Mat erodedImage = apelEroziuneCV(data.grayScale);
+
+    cv::imshow("Morfo-erroded", erodedImage);
+
+
+    // Morfo-Gradient
+    cv::Mat morphoGradient = dilatedImage - erodedImage;
+
+    cv::imshow("Morfo-Gradient", morphoGradient);
+
 	Mat gaussMat = Filtru_Gauss(data.grayScale);
-    imshow("Dupa aplicarea unui filtru Gauss", gaussMat);
+    imshow("Imaginea originala dupa aplicarea unui filtru Gauss", gaussMat);
 
     // Detectarea venelor adaptiveThresh
     Mat veinsImageOLD = detectareaVenelorOld(gaussMat, data);
@@ -20,16 +32,15 @@ void process(imageAnalyze& data)
     imshow("Vene Intermediare", veinsImage);
 
 	Mat veneIntermediareMediane = apelMedianBlurCV(veinsImage);
-    imshow("veneIntermediareMediane", veneIntermediareMediane);
+    imshow("Vene Intermediare Median filter OpenCV", veneIntermediareMediane);
 
 	veinsImage = veneIntermediareMediane;
-
 
 	{
 		Mat veinsImageMedian = filtrumedian(veinsImage);
 
 		// Afisarea imagnii in urma aplicarii unui filtru median
-		imshow("Vene IntermediareMedian", veinsImageMedian);
+		imshow("Vene Intermediare Median filter", veinsImageMedian);
 	}
 
 	Mat coloredImage = colorareaVenelor(data, veinsImage.data);
@@ -43,6 +54,7 @@ void process(imageAnalyze& data)
 	Mat coloredImageMedianBlured = apelMedianBlurCV(coloredImage);
 	// Afisarea imaginii cu venele evidentiate
     imshow("Vene Evidentiate Median", coloredImageMedianBlured);
+
 }
 
 Mat detectareaVenelorAdaptiv(const Mat& inputImage) 
@@ -60,7 +72,6 @@ Mat detectareaVenelorAdaptiv(const Mat& inputImage)
 	cv::Mat binaryMat(h, w, CV_8UC1, result);
 
 	cv::adaptiveThreshold(inMat, binaryMat, maxVal, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, blockSize, C); 
-
 
 	Mat veinsImage(h, w, CV_8UC1, result);
 	return veinsImage;
@@ -144,8 +155,8 @@ Mat colorareaVenelor(const imageAnalyze& data, unsigned char* veinsImageRaw)
                         int ii = i + k;
                         int jj = j + l;
                         
-                        if (ii >= 0 && ii < data.grayScale.rows && jj >= 0 && jj < data.grayScale.cols) {
-
+                        if (ii >= 0 && ii < data.grayScale.rows && jj >= 0 && jj < data.grayScale.cols) 
+                        {
                             unsigned char neighb = veinsImageRaw[ii * data.grayScale.cols + jj];
                             
                             if (abs(neighb - center) <= 5) 
@@ -170,8 +181,8 @@ Mat colorareaVenelor(const imageAnalyze& data, unsigned char* veinsImageRaw)
 
 Mat apelGaussianBlurCV(const Mat& inputImage)
 {
- 	cv::Size ksize(21, 21); // Dimensiunea kernel-ului Gaussian
-    double sigma = 1;    	// Deviația standard
+ 	cv::Size ksize(21, 21);
+    double sigma = 1;
     cv::Mat outputImage;
     cv::GaussianBlur(inputImage, outputImage, ksize, sigma);
 
@@ -180,8 +191,7 @@ Mat apelGaussianBlurCV(const Mat& inputImage)
 
 Mat apelMedianBlurCV(const Mat& inputImage)
 {
-	// Aplicați filtrul median
-    int kernelSize = 3; 	// Dimensiunea kernel-ului median
+    int kernelSize = 3;
     cv::Mat outputImage;
     cv::medianBlur(inputImage, outputImage, kernelSize);
 
@@ -287,4 +297,143 @@ Mat Filtru_Gauss(const Mat& inputImage)
 	Mat gaussMat(h, w, CV_8UC1, result);
 
 	return gaussMat;
+}
+
+
+Mat apelDilatareCV(const Mat& inputImage)
+{
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::Mat outputImage;
+    cv::dilate(inputImage, outputImage, kernel);
+
+	return outputImage;
+}
+
+cv::Mat dilateImage(const cv::Mat& inputImage, const cv::Mat& kernel) {
+    int inputRows = inputImage.rows;
+    int inputCols = inputImage.cols;
+    int kernelRows = kernel.rows;
+    int kernelCols = kernel.cols;
+    
+    cv::Mat resultImage = inputImage.clone();
+
+    for (int y = 0; y < inputRows; y++) {
+        for (int x = 0; x < inputCols; x++) {
+            if (inputImage.at<uchar>(y, x) == 255) 
+            {
+                for (int ky = 0; ky < kernelRows; ky++) 
+                {
+                    for (int kx = 0; kx < kernelCols; kx++) 
+                    {
+                        int offsetY = y - kernelRows / 2 + ky;
+                        int offsetX = x - kernelCols / 2 + kx;
+
+                        if (offsetY >= 0 && offsetY < inputRows && offsetX >= 0 && offsetX < inputCols) 
+                        {
+                            resultImage.at<uchar>(offsetY, offsetX) = 255;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return resultImage;
+}
+
+Mat filtruDilatare(const Mat& inputImage)
+{
+	Mat kernel = (cv::Mat_<uchar>(5, 5) << 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+
+    int inputRows = inputImage.rows;
+    int inputCols = inputImage.cols;
+    int kernelRows = kernel.rows;
+    int kernelCols = kernel.cols;
+    
+    Mat resultImage = inputImage.clone();
+
+    for (int y = 0; y < inputRows; y++) 
+	{
+        for (int x = 0; x < inputCols; x++) 
+		{
+            if (inputImage.at<uchar>(y, x) == 255) 
+			{  
+
+                for (int ky = 0; ky < kernelRows; ky++) 
+				{
+                    for (int kx = 0; kx < kernelCols; kx++) 
+					{
+                        int offsetY = y - kernelRows / 2 + ky;
+                        int offsetX = x - kernelCols / 2 + kx;
+
+                        if (offsetY >= 0 && offsetY < inputRows && offsetX >= 0 && offsetX < inputCols) 
+						{
+                            resultImage.at<uchar>(offsetY, offsetX) = 255;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return resultImage;
+}
+
+Mat apelEroziuneCV(const Mat& inputImage)
+{
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::Mat outputImage;
+    cv::erode(inputImage, outputImage, kernel);
+
+	return outputImage;
+}
+
+Mat filtruEroziune(const Mat& inputImage)
+{
+	Mat kernel = (cv::Mat_<uchar>(5, 5) << 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+
+    int inputRows = inputImage.rows;
+    int inputCols = inputImage.cols;
+    int kernelRows = kernel.rows;
+    int kernelCols = kernel.cols;
+
+    cv::Mat resultImage = inputImage.clone();
+
+    for (int y = 0; y < inputRows; y++) 
+	{
+        for (int x = 0; x < inputCols; x++) 
+		{
+            if (inputImage.at<uchar>(y, x) == 255) 
+			{  
+                bool performErosion = true;
+
+                for (int ky = 0; ky < kernelRows; ky++) 
+				{
+                    for (int kx = 0; kx < kernelCols; kx++) 
+					{
+                        int offsetY = y - kernelRows / 2 + ky;
+                        int offsetX = x - kernelCols / 2 + kx;
+
+                        if (offsetY < 0 || offsetY >= inputRows || offsetX < 0 || offsetX >= inputCols || inputImage.at<uchar>(offsetY, offsetX) == 0) 
+						{
+                            performErosion = false;
+                            break;
+                        }
+                    }
+
+                    if (!performErosion) 
+					{
+                        break;
+                    }
+                }
+
+                if (performErosion) 
+				{
+                    resultImage.at<uchar>(y, x) = 0;
+                }
+            }
+        }
+    }
+
+    return resultImage;
 }
